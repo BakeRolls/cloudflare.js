@@ -1,24 +1,34 @@
+#!/usr/bin/node
+
 'use strict';
 
+let fs = require('fs')
 let axios = require('axios')
 let jsdom = require('jsdom')
 
-let pass
 let url = process.argv[2]
+let file =  process.argv[3] || './headers.json'
 let sleep = 3
 let base = url.split('/')[0] + '//' + url.split('/')[2]
-let config = { headers: {
-	'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36'
-}, params: {} }
+let config = { headers: {}, params: {} }
 
-axios.get(url, config).catch((res) => {
-	if(res.status != 503)
-		return false
+fs.readFile(file, (err, data) => {
+	if(!err) config.headers = JSON.parse(data)
 
-	config.headers['Cookie'] = res.headers['set-cookie']
-
-	jsdom.env(res.data, parseDom)
+	requestFile()
 })
+
+let requestFile = () => {
+	axios.get(url, config).catch((res) => {
+		if(res.status != 503) return false
+
+		config.headers['Cookie'] = [res.headers['set-cookie'][0].split(';')[0]]
+
+		jsdom.env(res.data, parseDom)
+	}).then((res) => {
+		console.log(res.data)
+	})
+}
 
 let parseDom = (err, window) => {
 	let form = window.document.querySelector('#challenge-form')
@@ -36,28 +46,26 @@ let getClearance = (action) => {
 		if(!res.headers['set-cookie'])
 			return false
 
-		config.headers['Cookie'].push(res.headers['set-cookie'][0])
+		config.headers['Cookie'].push(res.headers['set-cookie'][0].split(';')[0])
 
-		for(let cookie of config.headers['Cookie'])
-			console.log(cookie.split(';')[0])
+		fs.writeFile(file, JSON.stringify(config.headers))
 
-		// finally request the url
-		//axios.get(url, config).then((res) => {
-		//	console.log(res.data)
-		//})
+		/*
+		console.log('curl "' + url + '" \\')
+
+		for(let key in config.headers) {
+			data = config.headers[key]
+
+			if(key == 'Cookie') data.join('; ')
+
+			else console.log('-H "' + key + ': ' + data + '" \\')
+		}
+
+		console.log('--compressed')
+		*/
+
+		requestFile()
 	})
-}
-
-let parseCookie = (cookie) => {
-	let obj = {}
-
-	for(let part of cookie.split(';')) {
-		part = part.trim().split('=')
-
-		obj[part[0]] = part[1]
-	}
-
-	return obj
 }
 
 let solveJschlChallange = (document) => {
@@ -70,7 +78,7 @@ let solveJschlChallange = (document) => {
 	while(match = regex.exec(script))
 		jschl = eval('(' + jschl + ')' + match[1] + '(' + match[2] + ')')
 
-	jschl = parseInt(jschl, 10) + url.split('/')[2].length
+	jschl = parseInt(jschl, 10) + url.split('/')[2].length + ''
 
 	return jschl
 }
