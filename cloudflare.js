@@ -44,7 +44,7 @@ class CloudFlare {
 		for(let input of form.querySelectorAll('input'))
 			this.config.params[input.name] = input.value
 
-		this.config.params['jschl_answer'] = this.solveJschlChallange(window.document)
+		this.config.params['jschl_answer'] = this.solveJschlChallange(window.document.querySelector('script').innerHTML)
 
 		setTimeout(() => { this.getClearance(this.base + form.action) }, this.sleep * 1000)
 	}
@@ -61,9 +61,8 @@ class CloudFlare {
 		})
 	}
 
-	solveJschlChallange(document) {
+	solveJschlChallange(script) {
 		let match
-		let script = document.querySelector('script').innerHTML
 		let jschl = /\:([\+\(\)\[\]!]+)/.exec(script)[1] // initial value
 		let regex = /[a-z]+\.[a-z]+([\+\-\*\/])=([\+\(\)\[\]!]+);/gi // all the other lines
 
