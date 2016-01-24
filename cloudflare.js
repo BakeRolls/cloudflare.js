@@ -28,7 +28,7 @@ class CloudFlare {
 
 	requestFile() {
 		axios.get(this.url, this.config).then(this.resolve).catch((res) => {
-			if(res.code == 'ENOTFOUND') this.reject(res.code)
+			if(res.code == 'ENOTFOUND') this.reject('This domain does not exist.')
 			if(res.headers.server !== 'cloudflare-nginx') this.resolve(res)
 			if(!res.headers['set-cookie']) this.reject('Got no new session cookie. Try deleting ' + file + '.')
 
@@ -44,7 +44,7 @@ class CloudFlare {
 		for(let input of form.querySelectorAll('input'))
 			this.config.params[input.name] = input.value
 
-		this.config.params['jschl_answer'] = this.solveJschlChallange(window.document.querySelector('script').innerHTML)
+		this.config.params['jschl_answer'] = this.solveJschlChallange(window.document)
 
 		setTimeout(() => { this.getClearance(this.base + form.action) }, this.sleep * 1000)
 	}
@@ -61,8 +61,9 @@ class CloudFlare {
 		})
 	}
 
-	solveJschlChallange(script) {
+	solveJschlChallange(document) {
 		let match
+		let script = document.querySelector('script').innerHTML
 		let jschl = /\:([\+\(\)\[\]!]+)/.exec(script)[1] // initial value
 		let regex = /[a-z]+\.[a-z]+([\+\-\*\/])=([\+\(\)\[\]!]+);/gi // all the other lines
 
@@ -76,8 +77,12 @@ class CloudFlare {
 	}
 }
 
-new CloudFlare(process.argv[2]).then((res) => {
-	console.log(res.data)
-}, (err) => {
-	console.log(err)
-})
+if(!module.parent) {
+	new CloudFlare(process.argv[2]).then((res) => {
+		console.log(res.data)
+	}, (err) => {
+		console.log(err)
+	})
+} else {
+	exports.CloudFlare = CloudFlare
+}
